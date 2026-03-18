@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Frozen Surface Modes on a Moving Interface — Interactive Supplementary: Fourier-space Intersections</title>
+<style>
+  :root { --bg:#0b0c10; --card:#14161b; --ink:#e9eef5; --muted:#9aa4b2; --border:#262a33; --field:#0f1115; --grid:#2b2f37; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+  h1{font-size:1.05rem;margin:10px 12px}
+  .bar{display:flex;gap:10px;flex-wrap:wrap;margin:0 12px}
+  .section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;flex:1 1 220px;min-width:220px}
+  label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:6px}
+  select,input[type="number"],input[type="text"]{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--field);color:var(--ink)}
+  input[type="range"]{width:100%}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .pill{display:inline-block;padding:4px 8px;border-radius:10px;background:#1c212a;border:1px solid var(--border);margin-left:6px}
+  .pill-input{text-align:center;cursor:text}
+  .pill-input:focus{outline:none;border-color:#4b5563;box-shadow:0 0 0 2px rgba(255,255,255,0.08)}
+  input.pill-input[type="number"]{
+    width:calc(5ch + 18px);
+    padding:4px 8px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:#1c212a;
+    color:var(--ink);
+    font-size:inherit;
+    line-height:inherit;
+    appearance:textfield;
+    -moz-appearance:textfield
+  }
+  input.pill-input[type="number"]::-webkit-outer-spin-button,
+  input.pill-input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .valrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:10px 12px}
+  @media (max-width:1350px){ .grid3{grid-template-columns:1fr} }
+  @media (max-width:1000px){ .grid2{grid-template-columns:1fr} }
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px}
+  .card-title{font-weight:700;margin-bottom:6px}
+  .plot{width:100%;height:60vh}
+  .plot.heat{height:60vh}
+  .muted{color:var(--muted)}
+</style>
+<!-- Online scripts -->
+ <!-- 
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.1/lib/browser/math.min.js"></script>
+ -->
+<!-- Local scripts --> 
+<!--   -->
+<script src="./plotly-2.35.2.min.js"></script>
+<script src="./math.min.js"></script>
+<!-- -->
+
+</head>
+<body>
+  <h1>Frozen Surface Modes on a Moving Interface — Interactive Supplementary: Fourier-space Intersections</h1>
+
+  <!-- Controls -->
+  <div class="bar">
+    <div class="section">
+      <label>Dimensionality</label>
+      <select id="mode">
+        <option value="2d">2D (kₓ, ω)</option>
+        <option value="3d" selected>3D (kₓ, kᵧ, ω)</option>
+      </select>
+    </div>
+
+    <div class="section">
+      <label>Medium dispersion</label>
+      <select id="medium">
+        <option value="sp">Surface plasmon (Drude ε(ω′)=1−ωₚ²/ω′²)</option>
+        <option value="bulk">Bulk (kₜ′ = n·ω′) - Visualising Cherenkov radiation</option>
+      </select>
+    </div>
+
+    <div class="section" id="bulkBox" style="display:none">
+      <div class="valrow">
+        <div><span class="muted">Bulk refractive index n</span><input id="nLab" class="pill mono pill-input" type="number" min="1" max="5" step="0.1" value="5.0" aria-label="Bulk refractive index n"/></div>
+      </div>
+      <input id="nval" type="range" min="1" max="5" step="0.1" value="5"/>
+    </div>
+
+    <div class="section">
+      <div class="valrow">
+        <div><span class="muted">v/c</span><input id="vLab" class="pill mono pill-input" type="number" min="0" max="1" step="0.001" value="0.000" aria-label="Velocity ratio v over c"/></div>
+        <div><span class="muted">γ</span><span id="gLab" class="pill mono">1.000</span></div>
+      </div>
+      <input id="v" type="range" min="0" max="1" step="0.001" value="0"/>
+      <div class="muted" style="margin-top:6px">Relative velocity between emitter and medium</div>
+    </div>
+
+    <div class="section">
+      <div class="valrow">
+        <div><span id="w0Title" class="muted">ω₀/ωₚ</span><input id="w0Lab" class="pill mono pill-input" type="number" min="0" max="1" step="0.001" value="0.400" aria-label="Emitter frequency"/></div>
+      </div>
+      <input id="w0" type="range" min="0" max="1" step="0.001" value="0.400"/>
+      <div class="muted" style="margin-top:6px">Emitter frequency in S</div>
+    </div>
+  </div>
+
+  <!-- 2D layout -->
+  <div id="row2D" class="grid2">
+    <div class="panel">
+      <div class="card-title">2D dispersion — Surface frame (S′)</div>
+      <div id="plotS2D" class="plot"></div>
+    </div>
+    <div class="panel">
+      <div class="card-title">2D dispersion — Emitter frame (S)</div>
+      <div id="plotSpr2D" class="plot"></div>
+    </div>
+  </div>
+
+  <!-- 3D layout: exactly three panels -->
+  <div id="row3D" class="grid3" style="display:none">
+    <div class="panel">
+      <div class="card-title">3D dispersion — Surface frame (S′)</div>
+      <div id="plotS3D" class="plot"></div>
+    </div>
+    <div class="panel">
+      <div class="card-title">(kₓ, kᵧ) projection — Surface frame (S′)</div>
+      <div id="plotHeatS" class="plot heat"></div>
+    </div>
+    <div class="panel">
+      <div class="card-title">3D dispersion — Emitter frame (S)</div>
+      <div id="plotSpr3D" class="plot"></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  // -------- CONFIG --------
+  const CFG = {
+    kmax: 3.0,                // |kx|,|ky| axis limits
+    wmax: 1.0,                // |ω| limit (in ωp units)
+    wspMax: 1/Math.SQRT2,     // SP exists for |ω|<1/√2 (lossless Drude, wp=1)
+    samples2D: 900,
+    panelHeightsVh: {         // panel heights in viewport-height units
+      plot2D: 50,
+      plot3D: 50,
+      heat3D: 50
+    },
+    settleDelayMs: 900,
+    quality: {
+      interactive: { surfNw: 24, surfNtheta: 32, textureN: 61,  sprPlaneN: 29  },
+      settled:     { surfNw: 72, surfNtheta: 96, textureN: 241, sprPlaneN: 121 }
+    },
+    epsWMin: 1e-4,
+    distEps: 1e-3,
+    opacityMedium: 0.55,
+    opacityEmitterS: 0.80,    // textured S-plane
+    opacityEmitterSpr: 0.60,  // textured S′ plane
+    cameraCenter3D: {         // tweak by small amounts (e.g. ±0.05) to shift the 3D scene center
+      x: 0.00,
+      y: 0.00,
+      z: -0.20
+    }
+  };
+  CFG.colors = {
+    plotText: '#929292',
+    plot2D: {
+      medium: {                // medium trace color in 2D, per dispersion type
+        sp: '#7e57c2',
+        bulk: '#1f77b4'
+      },
+      emitter: '#ff7f0e',
+      intersection: '#e53935'
+    },
+    dispersionSheets: [        // 3D medium-sheet colorscale [position, color]
+      [0, '#fdf169b9'],
+      [0.5, '#ffdf4f'],
+      [1, '#fdf169b9']
+    ]
+  };
+
+
+  // --- DOM
+  const $ = id => document.getElementById(id);
+  const modeEl = $('mode'), mediumEl = $('medium'), bulkBox = $('bulkBox'), nEl = $('nval');
+  const nLab = $('nLab');
+  const vEl = $('v'), w0El = $('w0'), vLab = $('vLab'), gLab = $('gLab'), w0Title = $('w0Title'), w0Lab = $('w0Lab');
+
+  const row2D = $('row2D');
+  const plotS2D = $('plotS2D'), plotSpr2D = $('plotSpr2D');
+
+  const row3D = $('row3D');
+  const plotS3D = $('plotS3D'), plotSpr3D = $('plotSpr3D'), plotHeatS = $('plotHeatS');
+
+  // --- Camera persistence stores
+  let camS3D = null;     // camera for S 3D plot
+  let camSpr3D = null;   // camera for S' 3D plot
+
+  function applyPanelHeights(){
+    const setHeightVh = (el, vh) => { el.style.height = `${vh}vh`; };
+    [plotS2D, plotSpr2D].forEach(el => setHeightVh(el, CFG.panelHeightsVh.plot2D));
+    [plotS3D, plotSpr3D].forEach(el => setHeightVh(el, CFG.panelHeightsVh.plot3D));
+    setHeightVh(plotHeatS, CFG.panelHeightsVh.heat3D);
+  }
+
+  // --- Helpers
+  const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+  const linspace = (a,b,n)=>Array.from({length:n},(_,i)=>a+(b-a)*(i/(n-1)));
+  const gamma = v => 1/Math.sqrt(1 - v*v);
+  const kCorner = ()=> CFG.kmax * Math.SQRT2; // √2 * kmax
+  const QUALITY_RANK = {interactive:0, settled:1};
+
+  const axisCache = new Map();
+  const thetaCache = new Map();
+  const planeMeshCache = new Map();
+  const mediumSurfaceCache = new Map();
+  const mediumMagnitudeCache = new Map();
+
+  function getAxisSamples(n){
+    let xs = axisCache.get(n);
+    if (!xs){
+      xs = linspace(-CFG.kmax, CFG.kmax, n);
+      axisCache.set(n, xs);
+    }
+    return xs;
+  }
+  function getThetaSamples(n){
+    let theta = thetaCache.get(n);
+    if (!theta){
+      theta = linspace(0, 2*Math.PI, n);
+      thetaCache.set(n, theta);
+    }
+    return theta;
+  }
+  function getPlaneMesh(n){
+    let mesh = planeMeshCache.get(n);
+    if (!mesh){
+      const xs = getAxisSamples(n), ys = xs;
+      const X = Array.from({length:n}, (_,i)=>new Array(n).fill(xs[i]));
+      const Y = Array.from({length:n}, ()=>ys.slice());
+      mesh = {xs, ys, X, Y};
+      planeMeshCache.set(n, mesh);
+    }
+    return mesh;
+  }
+  function mediumCacheKey(medium, n, q1, q2){
+    const nKey = medium === 'bulk' ? Number(n).toFixed(6) : 'sp';
+    return [medium, nKey, q1, q2].join('|');
+  }
+  function sliderStepDecimals(el){
+    const step = el.step || '';
+    if (!step.includes('.')) return 0;
+    return step.split('.')[1].length;
+  }
+  function syncValueInput(inputEl, value, decimals){
+    if (document.activeElement === inputEl) return;
+    inputEl.value = value.toFixed(decimals);
+  }
+  function attachSliderValueInput(sliderEl, inputEl, onInteractive, onSettled){
+    const decimals = sliderStepDecimals(sliderEl);
+    const min = Number(sliderEl.min);
+    const max = Number(sliderEl.max);
+
+    inputEl.addEventListener('input', () => {
+      const typed = parseFloat(inputEl.value);
+      if (!Number.isFinite(typed)) return;
+      sliderEl.value = clamp(typed, min, max).toFixed(decimals);
+      onInteractive();
+    });
+
+    const commit = () => {
+      const raw = parseFloat(inputEl.value);
+      const fallback = parseFloat(sliderEl.value);
+      const next = clamp(Number.isFinite(raw) ? raw : fallback, min, max);
+      sliderEl.value = next.toFixed(decimals);
+      syncValueInput(inputEl, next, decimals);
+      onSettled();
+    };
+
+    inputEl.addEventListener('change', commit);
+    inputEl.addEventListener('blur', commit);
+    inputEl.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter'){
+        inputEl.blur();
+      } else if (ev.key === 'Escape'){
+        syncValueInput(inputEl, parseFloat(sliderEl.value), decimals);
+        inputEl.blur();
+      }
+    });
+  }
+
+  const drudeEps = w => 1 - 1/(w*w); // wp=1
+  function ktSP(absw){
+    if (absw <= 0) return 0;
+    if (absw >= CFG.wspMax) return NaN;
+    const eps = drudeEps(absw), den = 1 + eps;
+    const ratio = eps/den;
+    if (ratio <= 0) return NaN;
+    return absw * Math.sqrt(ratio);
+  }
+  function invertSPfromKt(kt){
+    // Closed-form inversion of the lossless Drude SP branch.
+    if (!Number.isFinite(kt) || kt < 0) return NaN;
+    const k2 = kt*kt;
+    const disc = Math.sqrt(1 + 4*k2*k2);
+    const w2 = 0.5 * (1 + 2*k2 - disc);
+    if (w2 <= 0) return 0;
+    return Math.sqrt(Math.min(w2, CFG.wspMax*CFG.wspMax));
+  }
+
+  function axisLabels(medium, frame='S'){
+    const prime = frame === "S'" ? "'" : '';
+    const omega = frame === "S'" ? "ω'" : 'ω';
+    if (medium === 'sp'){
+      return {
+        x: `ck${prime}<sub>x</sub>/ω<sub>p</sub>`,
+        y: `ck${prime}<sub>y</sub>/ω<sub>p</sub>`,
+        z: `${omega}/ω<sub>p</sub>`
+      };
+    }
+    return {
+      x: `ck${prime}<sub>x</sub>`,
+      y: `ck${prime}<sub>y</sub>`,
+      z: omega
+    };
+  }
+  function layout2D(frame='S', medium='sp'){
+    const labels = axisLabels(medium, frame);
+    return {
+      paper_bgcolor: '#14161b',
+      plot_bgcolor: '#0f1115',
+      font:{color:CFG.colors.plotText},
+      margin:{l:45,r:15,t:10,b:52},
+      xaxis:{title:labels.x, color:CFG.colors.plotText, range:[-CFG.kmax, CFG.kmax], showgrid:true, gridcolor:'#2b2f37', zeroline:true, zerolinecolor:'#000', linecolor:'#000', mirror:true, showline:true},
+      yaxis:{title:labels.z, color:CFG.colors.plotText, range:[-CFG.wmax, CFG.wmax], showgrid:true, gridcolor:'#2b2f37', zeroline:true, zerolinecolor:'#000', linecolor:'#000', mirror:true, showline:true},
+      legend:{orientation:'h', y:-0.20, font:{color:CFG.colors.plotText}}
+    };
+  }
+  function layout3D(frame='S', medium='sp'){
+    const labels = axisLabels(medium, frame);
+    return {
+      paper_bgcolor: '#14161b',
+      font:{color:CFG.colors.plotText},
+      scene:{
+        xaxis:{title:labels.x, color:CFG.colors.plotText, range:[-CFG.kmax, CFG.kmax], zeroline:true, zerolinecolor:'#000', linecolor:'#000'},
+        yaxis:{title:labels.y, color:CFG.colors.plotText, range:[-CFG.kmax, CFG.kmax], zeroline:true, zerolinecolor:'#000', linecolor:'#000'},
+        zaxis:{title:labels.z, color:CFG.colors.plotText, range:[-CFG.wmax, CFG.wmax], zeroline:true, zerolinecolor:'#000', linecolor:'#000'},
+        bgcolor:'#0f1115',
+        aspectmode:'cube',
+        camera:{center:CFG.cameraCenter3D, eye:{x:-1.4,y:-1.2,z:1.1}}
+      },
+      margin:{l:0,r:0,t:10,b:0},
+      legend:{orientation:'h', y:-0.1, font:{color:CFG.colors.plotText}}
+    };
+  }
+  function layoutHeat(frame='S', medium='sp'){
+    const labels = axisLabels(medium, frame);
+    return {
+      paper_bgcolor: '#14161b',
+      plot_bgcolor: '#0f1115',
+      font:{color:CFG.colors.plotText},
+      margin:{l:50,r:20,t:10,b:45},
+      xaxis:{title:labels.x, color:CFG.colors.plotText, range:[-CFG.kmax, CFG.kmax], showgrid:true, gridcolor:'#2b2f37', zeroline:true, zerolinecolor:'#000', linecolor:'#000', mirror:true, showline:true},
+      yaxis:{title:labels.y, color:CFG.colors.plotText, range:[-CFG.kmax, CFG.kmax], scaleanchor:'x', showgrid:true, gridcolor:'#2b2f37', zeroline:true, zerolinecolor:'#000', linecolor:'#000', mirror:true, showline:true}
+    };
+  }
+  function hoverTemplate2D(frame='S', medium='sp'){
+    const labels = axisLabels(medium, frame);
+    return `${labels.x}: %{x:.3f}<br>${labels.z}: %{y:.3f}<extra></extra>`;
+  }
+  function hoverTemplateHeat(frame='S', medium='sp'){
+    const labels = axisLabels(medium, frame);
+    return `${labels.x}: %{x:.3f}<br>${labels.y}: %{y:.3f}<extra></extra>`;
+  }
+
+  // --- Lorentz
+  function lorentz2D(kxArr, wArr, v){
+    const g = gamma(v);
+    const X = new Array(kxArr.length), W = new Array(wArr.length);
+    for (let i=0;i<kxArr.length;i++){
+      const kx = kxArr[i], w = wArr[i];
+      X[i] = g*(kx - v*w);
+      W[i] = g*(w  - v*kx);
+    }
+    return {kx:X, w:W};
+  }
+  function lorentz3D_arrays(X, Y, Z, v){
+    const g = gamma(v);
+    const nx = X.length, ny = X[0].length;
+    const Xp = Array.from({length:nx},()=>new Array(ny));
+    const Zp = Array.from({length:nx},()=>new Array(ny));
+    for (let i=0;i<nx;i++){
+      for (let j=0;j<ny;j++){
+        const kx=X[i][j], w=Z[i][j];
+        Xp[i][j]=g*(kx - v*w);
+        Zp[i][j]=g*(w - v*kx);
+      }
+    }
+    return {X:Xp, Y, Z:Zp};
+  }
+
+  // --- Medium curves in S (2D)
+  function medium2D_S(medium, n){
+    const branches=[];
+    if (medium==='bulk'){
+      const xs=linspace(-CFG.kmax, CFG.kmax, CFG.samples2D);
+      const pos=xs.map(x=>Math.abs(x)/n);
+      const neg=pos.map(v=>-v);
+      branches.push({x:xs,y:pos},{x:xs,y:neg});
+    } else {
+      const us=linspace(CFG.epsWMin, Math.min(CFG.wspMax*0.995, CFG.wmax), CFG.samples2D);
+      const make=(sw,sk)=>{
+        const x=[], y=[];
+        for (const u of us){
+          const kt=ktSP(u); if (!isFinite(kt)) continue;
+          const kx=sk*kt, w=sw*u;
+          if (Math.abs(kx)<=CFG.kmax && Math.abs(w)<=CFG.wmax){ x.push(kx); y.push(w); }
+        }
+        return {x,y};
+      };
+      for (const sw of [+1,-1]) for (const sk of [+1,-1]) branches.push(make(sw,sk));
+    }
+    return branches;
+  }
+
+  // --- Emitter lines (2D)
+  function emitter2D_S(v,w0){
+    const g=gamma(v); const xs=linspace(-CFG.kmax, CFG.kmax, 600);
+    return {x:xs, y:xs.map(x=> v*x + w0/g)};
+  }
+  function emitter2D_Spr(w0){
+    const xs=linspace(-CFG.kmax, CFG.kmax, 600);
+    return {x:xs, y:xs.map(_=> w0)};
+  }
+
+  // --- 2D intersections (unchanged)
+  function bisection(f,a,b,it=60,tol=1e-10){
+    let fa=f(a), fb=f(b); if (!isFinite(fa)||!isFinite(fb)||fa*fb>0) return null;
+    let L=a,R=b,M=0,FM=0;
+    for (let i=0;i<it;i++){ M=0.5*(L+R); FM=f(M); if(!isFinite(FM))return null;
+      if (Math.abs(FM)<tol||Math.abs(R-L)<tol) break;
+      if (fa*FM<=0){ R=M; fb=FM; } else { L=M; fa=FM; }
+    }
+    return M;
+  }
+  function inter2D_S(medium,n,v,w0){
+    const g=gamma(v); const pts=[];
+    const wLine = kx => v*kx + w0/g;
+    if (medium==='bulk'){
+      const xs=linspace(-CFG.kmax, CFG.kmax, 1200);
+      const scan = f=>{
+        let a=xs[0], fa=f(a);
+        for (let i=1;i<xs.length;i++){
+          const b=xs[i], fb=f(b);
+          if (isFinite(fa)&&isFinite(fb)&&fa*fb<=0){
+            const r=bisection(f,a,b);
+            if(r!=null){ const w=wLine(r); if(Math.abs(w)<=CFG.wmax) pts.push([r,w]); }
+          }
+          a=b; fa=fb;
+        }
+      };
+      scan(x=> wLine(x) - Math.abs(x)/n);
+      scan(x=> wLine(x) + Math.abs(x)/n);
+    } else {
+      const uMax = Math.min(CFG.wspMax*0.995, CFG.wmax);
+      const us=linspace(CFG.epsWMin,uMax,1000);
+      for (const s of [+1,-1]) for (const sk of [+1,-1]){
+        const F=u => (v*(sk*ktSP(u)) + w0/g) - (s*u);
+        let a=us[0], fa=F(a);
+        for (let i=1;i<us.length;i++){
+          const b=us[i], fb=F(b);
+          if (isFinite(fa)&&isFinite(fb)&&fa*fb<=0){
+            const ustar=bisection(F,a,b);
+            if(ustar!=null){
+              const kx=sk*ktSP(ustar), w=s*ustar;
+              if (isFinite(kx)&&Math.abs(kx)<=CFG.kmax&&Math.abs(w)<=CFG.wmax) pts.push([kx,w]);
+            }
+          }
+          a=b; fa=fb;
+        }
+      }
+    }
+    return pts;
+  }
+  function inter2D_Spr(medium,n,v,w0){
+    const g=gamma(v); const pts=[];
+    if (medium==='bulk'){
+      function scanBranch(sign){
+        const xs=linspace(-CFG.kmax, CFG.kmax, 1200);
+        const wS = x => sign * Math.abs(x)/n;
+        const F = x => g*(wS(x) - v*x) - w0;
+        let a=xs[0], fa=F(a);
+        for (let i=1;i<xs.length;i++){
+          const b=xs[i], fb=F(b);
+          if (isFinite(fa)&&isFinite(fb)&&fa*fb<=0){
+            const xr=bisection(F,a,b);
+            if(xr!=null){
+              const wSval=wS(xr);
+              const kxp=g*(xr - v*wSval);
+              if (Math.abs(kxp)<=CFG.kmax) pts.push([kxp, w0]);
+            }
+          }
+          a=b; fa=fb;
+        }
+      }
+      scanBranch(+1); scanBranch(-1);
+    } else {
+      const uMax=Math.min(CFG.wspMax*0.995, CFG.wmax);
+      const us=linspace(CFG.epsWMin,uMax,1200);
+      for (const s of [+1,-1]) for (const sk of [+1,-1]){
+        const F = u => g*(s*u - v*(sk*ktSP(u))) - w0;
+        let a=us[0], fa=F(a);
+        for (let i=1;i<us.length;i++){
+          const b=us[i], fb=F(b);
+          if (isFinite(fa)&&isFinite(fb)&&fa*fb<=0){
+            const ur=bisection(F,a,b);
+            if(ur!=null){
+              const wS=s*ur, kxS=sk*ktSP(ur);
+              const kxp=g*(kxS - v*wS);
+              if (isFinite(kxp)&&Math.abs(kxp)<=CFG.kmax) pts.push([kxp,w0]);
+            }
+          }
+          a=b; fa=fb;
+        }
+      }
+    }
+    return pts;
+  }
+
+  // --- 3D surfaces in S (bulk uses ω-sampling; SP uses k_t-sampling up to corner)
+  function surfaces3D_S(medium,n,quality){
+    const cacheKey = mediumCacheKey(medium, n, quality.surfNw, quality.surfNtheta);
+    const cached = mediumSurfaceCache.get(cacheKey);
+    if (cached) return cached;
+
+    const theta=getThetaSamples(quality.surfNtheta);
+
+    function makeXY_fromKt(ktArr){
+      const X=Array.from({length:theta.length},()=>new Array(ktArr.length));
+      const Y=Array.from({length:theta.length},()=>new Array(ktArr.length));
+      for (let i=0;i<theta.length;i++){
+        const c=Math.cos(theta[i]), s=Math.sin(theta[i]);
+        for (let j=0;j<ktArr.length;j++){
+          const kt=ktArr[j];
+          X[i][j]=kt*c;            // no clamping; axes crop to [-kmax,kmax]
+          Y[i][j]=kt*s;
+        }
+      }
+      return {X,Y};
+    }
+
+    if (medium==='bulk'){
+      // choose ω so that kt=n|ω| reaches the corner radius
+      const wmaxBulk = Math.min(CFG.wmax, kCorner()/Math.max(1e-12, n));
+      const wpos=linspace(0, wmaxBulk, quality.surfNw);
+      const wneg=linspace(0, wmaxBulk, quality.surfNw);
+      const ktP = wpos.map(w=> Math.abs(n*w));
+      const ktN = wneg.map(w=> Math.abs(n*w));
+      const XYp=makeXY_fromKt(ktP), XYn=makeXY_fromKt(ktN);
+      const Zp=Array.from({length:theta.length},()=> wpos.slice());
+      const Zn=Array.from({length:theta.length},()=> wneg.map(w=>-w));
+      const out = {mediumPos:{X:XYp.X,Y:XYp.Y,Z:Zp}, mediumNeg:{X:XYn.X,Y:XYn.Y,Z:Zn}};
+      mediumSurfaceCache.set(cacheKey, out);
+      return out;
+    } else {
+      // SURFACE PLASMON: sample directly in kt up to the corner radius, invert to ω(kt)
+      const ktArr = linspace(0, kCorner(), quality.surfNw);
+      const wArr  = ktArr.map(kt => invertSPfromKt(kt));           // 0 .. wspMax (→ flat rim)
+      const XY    = makeXY_fromKt(ktArr);
+      const Zp    = Array.from({length:theta.length},()=> wArr.slice());          // +ω branch
+      const Zn    = Array.from({length:theta.length},()=> wArr.map(w=> -w));      // −ω branch
+      const out = {mediumPos:{X:XY.X,Y:XY.Y,Z:Zp}, mediumNeg:{X:XY.X,Y:XY.Y,Z:Zn}};
+      mediumSurfaceCache.set(cacheKey, out);
+      return out;
+    }
+  }
+
+  function emitterPlane3D_S(v,w0,planeN){
+    const g=gamma(v), {X,Y,xs,ys}=getPlaneMesh(planeN);
+    const Z=Array.from({length:xs.length},(_,i)=>new Array(ys.length).fill(v*xs[i] + w0/g));
+    return {X,Y,Z, xs, ys};
+  }
+  function emitterPlane3D_Spr(w0,planeN){
+    const {X,Y,xs,ys}=getPlaneMesh(planeN);
+    const Z=Array.from({length:xs.length},()=>new Array(ys.length).fill(w0));
+    return {X,Y,Z, xs, ys};
+  }
+
+  // --- Heatmaps / textures
+  function getMediumMagnitudeGrid(medium,n,N){
+    const cacheKey = mediumCacheKey(medium, n, N, 'mag');
+    const cached = mediumMagnitudeCache.get(cacheKey);
+    if (cached) return cached;
+
+    const xs=getAxisSamples(N), ys=xs;
+    const W=Array.from({length:N},()=>new Array(N).fill(NaN));
+    const invN = medium === 'bulk' ? 1/Math.max(1e-12, n) : 0;
+    for (let i=0;i<N;i++){
+      const kx = xs[i];
+      for (let j=0;j<N;j++){
+        const ky = ys[j];
+        const kt = Math.sqrt(kx*kx + ky*ky);
+        const mag = (medium === 'bulk') ? (kt * invN) : invertSPfromKt(kt);
+        if (Number.isFinite(mag) && mag <= CFG.wmax) W[i][j] = mag;
+      }
+    }
+    const out = {xs, ys, W};
+    mediumMagnitudeCache.set(cacheKey, out);
+    return out;
+  }
+  function surfaceFrameTextureData(medium,n,v,w0,gridN){
+    const {xs,ys,W}=getMediumMagnitudeGrid(medium,n,gridN);
+    const color=Array.from({length:xs.length},()=>new Array(ys.length).fill(NaN));
+    const heat=Array.from({length:ys.length},()=>new Array(xs.length).fill(NaN));
+    const g=gamma(v);
+    const absWEmitByX = xs.map(kx => Math.abs(v*kx + w0/g));
+    for (let i=0;i<xs.length;i++){
+      const wEmitAbs = absWEmitByX[i];
+      for (let j=0;j<ys.length;j++){
+        const mag = W[i][j];
+        if (!Number.isFinite(mag)) continue;
+        const score = -Math.log10(Math.abs(wEmitAbs - mag) + CFG.distEps);
+        color[i][j] = score;
+        heat[j][i] = score;
+      }
+    }
+    return {xs, ys, color, heat};
+  }
+  function finiteMinMax(Z){
+    let zmin=Infinity, zmax=-Infinity;
+    for (let j=0;j<Z.length;j++){
+      for (let i=0;i<Z[0].length;i++){
+        const v=Z[j][i];
+        if (Number.isFinite(v)){ if (v<zmin) zmin=v; if (v>zmax) zmax=v; }
+      }
+    }
+    if (!Number.isFinite(zmin)) zmin = 0;
+    if (!Number.isFinite(zmax)) zmax = 1;
+    if (zmax <= zmin) zmax = zmin + 1;
+    return {zmin, zmax};
+  }
+  function textureOnEmitterPlaneGrid_Sprime(xsP, ysP, textureS, v, w0){
+    const g = gamma(v);
+    const nxP = xsP.length, nyP = ysP.length;
+    const xsS = textureS.xs, ysS = textureS.ys, colorS = textureS.color;
+    const nxS = xsS.length, nyS = ysS.length;
+    const C = Array.from({length:nxP},()=>new Array(nyP).fill(NaN));
+    const sx = (nxS - 1) / (2 * CFG.kmax);
+    const sy = (nyS - 1) / (2 * CFG.kmax);
+    for (let i=0;i<nxP;i++){
+      const kxPrime = xsP[i];
+      const kx = g * (kxPrime + v*w0);  // inverse Lorentz map from ω'=w0 plane back to S
+      const I = clamp(Math.round((kx + CFG.kmax) * sx), 0, nxS - 1);
+      for (let j=0;j<nyP;j++){
+        const ky = ysP[j];
+        const J = clamp(Math.round((ky + CFG.kmax) * sy), 0, nyS - 1);
+        C[i][j] = colorS[I][J];
+      }
+    }
+    return C;
+  }
+
+  // --- Attach camera persistence
+  function attachCameraPersistence(div, storeSetter){
+    div.on('plotly_relayout', (ev)=>{
+      const changed = Object.keys(ev).some(k => k.startsWith('scene.camera'));
+      if (changed && div._fullLayout && div._fullLayout.scene && div._fullLayout.scene.camera){
+        const cam = JSON.parse(JSON.stringify(div._fullLayout.scene.camera));
+        storeSetter(cam);
+      }
+    });
+  }
+
+  // --- Drawers
+  function draw2D(v,n,w0,medium){
+    row2D.style.display = '';
+    row3D.style.display = 'none';
+
+    const mediumColor = CFG.colors.plot2D.medium[medium] || CFG.colors.plot2D.medium.sp;
+
+    // S
+    const branches=medium2D_S(medium,n);
+    const tracesS = branches.map((b, idx)=>({
+      x:b.x, y:b.y, type:'scatter', mode:'lines', name:'Medium′',
+      legendgroup:'mediumS', showlegend:idx===0,
+      line:{width:4,color:mediumColor}, hoverinfo:'skip'
+    }));
+    const emS=emitter2D_S(v,w0);
+    tracesS.push({x:emS.x,y:emS.y,type:'scatter',mode:'lines',name:'Emitter′',line:{width:4,color:CFG.colors.plot2D.emitter},hoverinfo:'skip'});
+    const ixS=inter2D_S(medium,n,v,w0);
+    if (ixS.length) tracesS.push({x:ixS.map(p=>p[0]),y:ixS.map(p=>p[1]),type:'scatter',mode:'markers',name:'Intersections′',marker:{color:CFG.colors.plot2D.intersection,size:8,symbol:'circle'},hovertemplate:hoverTemplate2D("S'", medium)});
+    Plotly.react(plotS2D, tracesS, layout2D("S'", medium), {displayModeBar:false,responsive:true});
+
+    // S′
+    const tracesSp=[];
+    branches.forEach((b, idx)=>{
+      const t=lorentz2D(b.x,b.y,v);
+      tracesSp.push({
+        x:t.kx, y:t.w, type:'scatter', mode:'lines', name:'Medium',
+        legendgroup:'mediumSpr', showlegend:idx===0,
+        line:{width:4,color:mediumColor}, hoverinfo:'skip'
+      });
+    });
+    const emSp=emitter2D_Spr(w0);
+    tracesSp.push({x:emSp.x,y:emSp.y,type:'scatter',mode:'lines',name:"Emitter",line:{width:4,color:CFG.colors.plot2D.emitter},hoverinfo:'skip'});
+    const ixSp=inter2D_Spr(medium,n,v,w0);
+    if (ixSp.length) tracesSp.push({x:ixSp.map(p=>p[0]),y:ixSp.map(p=>p[1]),type:'scatter',mode:'markers',name:"Intersections",marker:{color:CFG.colors.plot2D.intersection,size:8,symbol:'circle'},hovertemplate:hoverTemplate2D('S', medium)});
+    Plotly.react(plotSpr2D, tracesSp, layout2D('S', medium), {displayModeBar:false,responsive:true});
+  }
+
+  function draw3D(v,n,w0,medium,qualityName='settled'){
+    row2D.style.display = 'none';
+    row3D.style.display = '';
+
+    const quality = CFG.quality[qualityName] || CFG.quality.settled;
+
+    // Left: S 3D dispersion (with textured emitter plane)
+    const {mediumPos,mediumNeg}=surfaces3D_S(medium,n,quality);
+    const emS=emitterPlane3D_S(v,w0,quality.textureN);
+
+    // Shared heatmap + texture for S. Both views use the same sampled data.
+    const HS=surfaceFrameTextureData(medium,n,v,w0,quality.textureN);
+    const mmS = finiteMinMax(HS.heat);
+
+    // Right: S′ 3D dispersion (with texture)
+    const medPosP=lorentz3D_arrays(mediumPos.X,mediumPos.Y,mediumPos.Z,v);
+    const medNegP=lorentz3D_arrays(mediumNeg.X,mediumNeg.Y,mediumNeg.Z,v);
+    const emSp=emitterPlane3D_Spr(w0,quality.sprPlaneN);
+    const CplaneSpr = textureOnEmitterPlaneGrid_Sprime(emSp.xs, emSp.ys, HS, v, w0);
+    const mmSpr = finiteMinMax(CplaneSpr);
+
+    // Shared color normalization across S heatmap, S plane, and S′ plane
+    const mmAll = { zmin: Math.min(mmS.zmin, mmSpr.zmin), zmax: Math.max(mmS.zmax, mmSpr.zmax) };
+
+    // --- render S 3D
+    const layoutS = layout3D("S'", medium);
+    if (camS3D) layoutS.scene.camera = camS3D;
+    const tracesS = [
+      {type:'surface',x:mediumPos.X,y:mediumPos.Y,z:mediumPos.Z,showscale:false,opacity:CFG.opacityMedium,name:'Medium′ (+ω′)',colorscale:CFG.colors.dispersionSheets,surfacecolor:mediumPos.Z,hoverinfo:'skip'},
+      {type:'surface',x:mediumNeg.X,y:mediumNeg.Y,z:mediumNeg.Z,showscale:false,opacity:CFG.opacityMedium,name:'Medium′ (−ω′)',colorscale:CFG.colors.dispersionSheets,surfacecolor:mediumNeg.Z,hoverinfo:'skip'},
+      {type:'surface',x:emS.X,y:emS.Y,z:emS.Z,showscale:false,opacity:CFG.opacityEmitterS,name:'Emitter′ (textured)',colorscale:'Viridis',surfacecolor:HS.color,cmin:mmAll.zmin,cmax:mmAll.zmax,hoverinfo:'skip'}
+    ];
+    Plotly.react(plotS3D, tracesS, layoutS, {displayModeBar:false,responsive:true});
+    if (!plotS3D.__camAttached){
+      attachCameraPersistence(plotS3D, cam => { camS3D = cam; });
+      plotS3D.__camAttached = true;
+    }
+
+    // --- render middle heatmap (S)
+    Plotly.react(plotHeatS, [{
+      type:'heatmap', x:HS.xs, y:HS.ys, z:HS.heat, colorscale:'Viridis',
+      hovertemplate:hoverTemplateHeat("S'", medium),
+      zmin:mmAll.zmin, zmax:mmAll.zmax, colorbar:{title:{text:'−log₁₀ Δω′', font:{color:CFG.colors.plotText}}, tickfont:{color:CFG.colors.plotText}, thickness:12}
+    }], layoutHeat("S'", medium), {displayModeBar:false,responsive:true});
+
+    // --- render S′ 3D
+    const layoutSp = layout3D('S', medium);
+    if (camSpr3D) layoutSp.scene.camera = camSpr3D;
+    const tracesSp = [
+      {type:'surface',x:medPosP.X,y:medPosP.Y,z:medPosP.Z,showscale:false,opacity:CFG.opacityMedium,name:"Medium (+ω)",colorscale:CFG.colors.dispersionSheets,surfacecolor:medPosP.Z,hoverinfo:'skip'},
+      {type:'surface',x:medNegP.X,y:medNegP.Y,z:medNegP.Z,showscale:false,opacity:CFG.opacityMedium,name:"Medium (−ω)",colorscale:CFG.colors.dispersionSheets,surfacecolor:medNegP.Z,hoverinfo:'skip'},
+      {type:'surface',x:emSp.X,y:emSp.Y,z:emSp.Z,showscale:false,opacity:CFG.opacityEmitterSpr,name:"Emitter (textured)",
+       colorscale:'Viridis',surfacecolor:CplaneSpr,cmin:mmAll.zmin,cmax:mmAll.zmax,hoverinfo:'skip'}
+    ];
+    Plotly.react(plotSpr3D, tracesSp, layoutSp, {displayModeBar:false,responsive:true});
+    if (!plotSpr3D.__camAttached){
+      attachCameraPersistence(plotSpr3D, cam => { camSpr3D = cam; });
+      plotSpr3D.__camAttached = true;
+    }
+  }
+
+  // --- Live update engine (rAF throttling)
+  let scheduled=false;
+  let pendingQuality = null;
+  let settleTimer = null;
+  function scheduleUpdate(qualityName='settled'){
+    if (!pendingQuality || QUALITY_RANK[qualityName] > QUALITY_RANK[pendingQuality]) pendingQuality = qualityName;
+    if (scheduled) return;
+    scheduled=true;
+    requestAnimationFrame(()=>{
+      const qualityToRender = pendingQuality || 'settled';
+      scheduled=false;
+      pendingQuality = null;
+      updateAll(qualityToRender);
+    });
+  }
+  function scheduleInteractiveUpdate(){
+    scheduleUpdate('interactive');
+    if (settleTimer) clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(()=>{
+      settleTimer = null;
+      if (modeEl.value === '3d') scheduleUpdate('settled');
+    }, CFG.settleDelayMs);
+  }
+  function scheduleSettledUpdate(){
+    if (settleTimer){
+      clearTimeout(settleTimer);
+      settleTimer = null;
+    }
+    scheduleUpdate('settled');
+  }
+
+  function updateAll(qualityName='settled'){
+    const mode = modeEl.value;
+    const medium = mediumEl.value;
+    const nRaw = parseFloat(nEl.value);
+    const n = clamp(Number.isNaN(nRaw) ? 5 : nRaw, 1, 5);
+    nEl.value = n.toFixed(1);
+    syncValueInput(nLab, n, 1);
+
+    // v in [0,1] but cap to 0.99 to avoid γ→∞ at 1
+    let v = clamp(parseFloat(vEl.value), 0, 0.99);
+    if (Number.isNaN(v)) v = 0;
+    vEl.value = v.toFixed(3);
+    syncValueInput(vLab, v, 3);
+    gLab.textContent = (1/Math.sqrt(1-v*v)).toFixed(3);
+
+    // preserve w0=0
+    const w0Raw = parseFloat(w0El.value);
+    const w0 = clamp(Number.isNaN(w0Raw) ? 0.4 : w0Raw, 0, 1);
+    w0El.value = w0.toFixed(3);
+    syncValueInput(w0Lab, w0, 3);
+
+    // show/hide bulk n
+    bulkBox.style.display = (medium==='bulk') ? '' : 'none';
+    w0Title.textContent = (medium==='bulk') ? 'ω₀ (a.u.)' : 'ω₀/ωₚ';
+
+    if (mode==='2d') {
+      draw2D(v,n,w0,medium);
+    } else {
+      draw3D(v,n,w0,medium,qualityName);
+    }
+  }
+
+  // --- Events: live updates on drag
+  [modeEl, mediumEl].forEach(el => el.addEventListener('input', scheduleSettledUpdate));
+  attachSliderValueInput(nEl, nLab, scheduleInteractiveUpdate, scheduleSettledUpdate);
+  attachSliderValueInput(vEl, vLab, scheduleInteractiveUpdate, scheduleSettledUpdate);
+  attachSliderValueInput(w0El, w0Lab, scheduleInteractiveUpdate, scheduleSettledUpdate);
+  nEl.addEventListener('input', scheduleInteractiveUpdate);
+  vEl.addEventListener('input', scheduleInteractiveUpdate);
+  w0El.addEventListener('input', scheduleInteractiveUpdate);
+  nEl.addEventListener('change', scheduleSettledUpdate);
+  vEl.addEventListener('change', scheduleSettledUpdate);
+  w0El.addEventListener('change', scheduleSettledUpdate);
+
+  // Initial render
+  applyPanelHeights();
+  updateAll();
+})();
+</script>
+</body>
+</html>
